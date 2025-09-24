@@ -54,9 +54,6 @@
     <Platforms>AnyCPU;x64;ARM64</Platforms>
   </PropertyGroup>
   <ItemGroup>
-    <Content Remove="Assets\Icons\fe.svg" />
-  </ItemGroup>
-  <ItemGroup>
     <PackageReference Include="Ude.NetStandard" />
   </ItemGroup>
   <ItemGroup>
