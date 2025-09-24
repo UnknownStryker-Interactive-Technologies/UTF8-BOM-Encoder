@@ -13,11 +13,11 @@
     <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
     <ApplicationVersion>1</ApplicationVersion>
     <!-- Package Publisher -->
-    <ApplicationPublisher>Unknown Stryker Interactive Technology</ApplicationPublisher>
-    <Company>Unknown Stryker Interactive Technology</Company>
+    <ApplicationPublisher>UnknownStryker Interactive Technology</ApplicationPublisher>
+    <Company>UnknownStryker Interactive Technology</Company>
     <Authors>Unknown Stryker</Authors>
-    <Copyright>Copyright © 2023 Unknown Stryker Interactive Technology</Copyright>
-    <Trademark>Frogman Engine is a trademark of Unknown Stryker Interactive Technology</Trademark>
+    <Copyright>Copyright © 2023 UnknownStryker Interactive Technology</Copyright>
+    <Trademark>Frogman Engine is a trademark of UnknownStryker Interactive Technology</Trademark>
 
     <!-- Package Description -->
     <Description>Frogman Engine GDK C++ Source Encoder.</Description>
