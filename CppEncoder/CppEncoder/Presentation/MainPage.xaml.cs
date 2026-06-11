@@ -45,53 +45,58 @@ public sealed partial class MainPage : Page
 
         try
         {
+            FileListView.ItemsSource = null;
+
             FolderPicker picker = new Windows.Storage.Pickers.FolderPicker();
             picker.FileTypeFilter.Add("*");
             StorageFolder folder = await picker.PickSingleFolderAsync();
 
             if (folder != null)
             {
-                ConcurrentBag<(string filePath, Encoding encoding)> files = new System.Collections.Concurrent.ConcurrentBag<(string filePath, Encoding encoding)>();
+                ConcurrentBag<(string filePath, Encoding encoding)> files = new();
                 byte[] UTF8_BOM = [0xEF, 0xBB, 0xBF];
-                byte[] BOM_ValidationBuffer = new byte[3];
 
-                Parallel.ForEach(System.IO.Directory.GetFiles(folder.Path, searchPattern: "*.*", System.IO.SearchOption.AllDirectories), filePath =>
-                {
-                    if ((filePath.EndsWith(".h", StringComparison.OrdinalIgnoreCase) == true) ||
-                        (filePath.EndsWith(".hpp", StringComparison.OrdinalIgnoreCase) == true) ||
-                        (filePath.EndsWith(".cpp", StringComparison.OrdinalIgnoreCase) == true) ||
-                        (filePath.EndsWith(".hxx", StringComparison.OrdinalIgnoreCase) == true) ||
-                        (filePath.EndsWith(".cxx", StringComparison.OrdinalIgnoreCase) == true) ||
-                        (filePath.EndsWith(".hh", StringComparison.OrdinalIgnoreCase) == true) ||
-                        (filePath.EndsWith(".cc", StringComparison.OrdinalIgnoreCase) == true) ||
-                        (filePath.EndsWith(".tpp", StringComparison.OrdinalIgnoreCase) == true) ||
-                        (filePath.EndsWith(".inl", StringComparison.OrdinalIgnoreCase) == true))
+                Parallel.ForEachAsync(System.IO.Directory.GetFiles(folder.Path, searchPattern: "*.*", System.IO.SearchOption.AllDirectories), 
+                    async (filePath, ct) =>
                     {
-                        using (FileStream fileStream = new(filePath, FileMode.Open, FileAccess.Read))
+                        if ((filePath.EndsWith(".h", StringComparison.OrdinalIgnoreCase) == true) ||
+                            (filePath.EndsWith(".hpp", StringComparison.OrdinalIgnoreCase) == true) ||
+                            (filePath.EndsWith(".cpp", StringComparison.OrdinalIgnoreCase) == true) ||
+                            (filePath.EndsWith(".hxx", StringComparison.OrdinalIgnoreCase) == true) ||
+                            (filePath.EndsWith(".cxx", StringComparison.OrdinalIgnoreCase) == true) ||
+                            (filePath.EndsWith(".hh", StringComparison.OrdinalIgnoreCase) == true) ||
+                            (filePath.EndsWith(".cc", StringComparison.OrdinalIgnoreCase) == true) ||
+                            (filePath.EndsWith(".tpp", StringComparison.OrdinalIgnoreCase) == true) ||
+                            (filePath.EndsWith(".inl", StringComparison.OrdinalIgnoreCase) == true))
                         {
-                            if (fileStream.Length <= 3)
+                            using (FileStream fileStream = new(filePath, FileMode.Open, FileAccess.Read))
                             {
-                                return;
-                            }
-
-                            fileStream.ReadExactly(BOM_ValidationBuffer, 0, 3);
-
-                            if (false == BOM_ValidationBuffer.SequenceEqual(UTF8_BOM))
-                            {
-                                CharsetDetector detector = new();
-                                detector.Feed(fileStream);
-                                detector.DataEnd();
-
-                                if (detector.Charset == null)
+                                if (fileStream.Length <= 3)
                                 {
                                     return;
                                 }
-                                files.Add( (filePath, Encoding.GetEncoding(detector.Charset)) );
+
+                                byte[] BOM_ValidationBuffer = new byte[3];
+
+                                fileStream.ReadExactly(BOM_ValidationBuffer, 0, 3);
+
+                                if (false == BOM_ValidationBuffer.SequenceEqual(UTF8_BOM))
+                                {
+                                    CharsetDetector detector = new();
+                                    detector.Feed(fileStream);
+                                    detector.DataEnd();
+
+                                    if (detector.Charset == null)
+                                    {
+                                        return;
+                                    }
+                                    files.Add( (filePath, Encoding.GetEncoding(detector.Charset)) );
+                                }
                             }
                         }
                     }
-                });
-
+                ).Wait();
+          
                 FileListView.ItemsSource = files;
                 StatusText.Text = $"{files.Count} files selected for encoding.";
             }
@@ -151,21 +156,23 @@ public sealed partial class MainPage : Page
 
         try
         {
-            Parallel.ForEach(FileListView.Items, file =>
-            {
-                var (filePath, encoding) = (ValueTuple<string, Encoding>)file;
-
-                string content;
-                using (StreamReader reader = new(filePath, encoding, detectEncodingFromByteOrderMarks: true))
+            Parallel.ForEachAsync(FileListView.Items, 
+                async (file, ct) =>
                 {
-                    content = reader.ReadToEnd();
-                }
+                    var (filePath, encoding) = (ValueTuple<string, Encoding>)file;
 
-                using (StreamWriter writer = new(filePath, append: false, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true)))
-                {
-                    writer.Write(content);
+                    string content;
+                    using (StreamReader reader = new(filePath, encoding, detectEncodingFromByteOrderMarks: true))
+                    {
+                        content = reader.ReadToEnd();
+                    }
+
+                    using (StreamWriter writer = new(filePath, append: false, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true)))
+                    {
+                        writer.Write(content);
+                    }
                 }
-            });
+            ).Wait();
 
             StatusText.Text = "Encoding Complete!";
             mutex.ReleaseMutex(); // unlock it!
